@@ -1,0 +1,19 @@
+# Build artifacts
+*.apk
+*.aab
+*.dex
+*.class
+*.iml
+
+# Gradle
+.gradle/
+build/
+
+# IDE
+.idea/
+*.swp
+.DS_Store
+
+# Local
+tmp/
+*.log

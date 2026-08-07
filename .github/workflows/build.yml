@@ -1,0 +1,75 @@
+name: Build Leica Perfect APK
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-35 platforms;android-34 build-tools;34.0.0'
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sed grep git
+          echo "ANDROID_HOME=${ANDROID_HOME}"
+          echo "JAVA_HOME=${JAVA_HOME}"
+          java -version
+
+      - name: Make build script executable
+        run: chmod +x build-archlinux.sh
+
+      - name: Clone upstream
+        run: ./build-archlinux.sh clone
+
+      - name: Apply patches
+        run: ./build-archlinux.sh patch
+
+      - name: Build APK
+        run: ./build-archlinux.sh build
+        env:
+          ANDROID_HOME: ${{ env.ANDROID_HOME }}
+
+      - name: Find APK
+        run: |
+          echo "=== Procurando APK ==="
+          find /tmp/photon_upstream -name "*.apk" -type f 2>/dev/null
+          find /tmp/leica_build -name "*.apk" -type f 2>/dev/null
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: leica-perfect-apk
+          path: |
+            /tmp/photon_upstream/app/build/outputs/apk/**/*.apk
+            /tmp/leica_build/**/*.apk
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Upload build logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs
+          path: |
+            /tmp/photon_upstream/app/build/outputs/
+            /tmp/photon_upstream/*.log
+          if-no-files-found: ignore
+          retention-days: 7
