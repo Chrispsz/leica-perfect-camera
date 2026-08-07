@@ -94,7 +94,7 @@ object LeicaConfig {
      * Controla trade-off qualidade vs velocidade/termico.
      */
     data class CaptureModeConfig(
-        @SerializedName("active_capture_mode") val activeCaptureMode: String? = "mode_fast",
+        @SerializedName("active_capture_mode") val activeCaptureMode: String? = "mode_max",
         @SerializedName("modes") val modes: Map<String, CaptureModeSettings>? = null,
     )
 
@@ -545,7 +545,7 @@ object LeicaConfig {
     val activeCaptureMode: String
         get() = LeicaRuntimeState.captureModeOverride
             ?: currentConfig?.captureModes?.activeCaptureMode
-            ?: "mode_fast"
+            ?: "mode_max"
 
     /** Settings do capture mode ativo (null = usar defaults globais). */
     val captureModeSettings: CaptureModeSettings?
@@ -1321,7 +1321,7 @@ object LeicaConfig {
             append("${countSections(cfg)} sections, ")
             append("${cfg.creativeProfiles?.profiles?.size ?: 0} creative profiles, ")
             append("active=${cfg.creativeProfiles?.activeProfile ?: "leica_authentic"}, ")
-            append("capture_mode=${cfg.captureModes?.activeCaptureMode ?: "mode_fast"}, ")
+            append("capture_mode=${cfg.captureModes?.activeCaptureMode ?: "mode_max"}, ")
             append("loaded ${if (isLoaded) "OK" else "FAIL"}")
         }
     }
@@ -1393,7 +1393,7 @@ object LeicaConfig {
     fun resolveCaptureModeForScene(sceneLux: Float, isStatic: Boolean): String {
         return when {
             isStatic && sceneLux < 100f -> "mode_max"
-            else -> "mode_fast"
+            else -> "mode_max"
         }
     }
 

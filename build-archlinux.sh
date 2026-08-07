@@ -3407,11 +3407,11 @@ GRADLE_KT
     local runtime_kt="$APP_JAVA/raw/LeicaRuntimeState.kt"
     local p62_count=0
 
-    # P-62.1: Update leica_perfect.json capture_modes (mode_balanced → mode_fast + drop RAW)
-    substep "P-62.1: leica_perfect.json — capture_modes block (mode_fast + force_no_raw)"
+    # P-62.1: Update leica_perfect.json capture_modes (mode_max only — MAX-ONLY v6.4.0-fix11)
+    substep "P-62.1: leica_perfect.json — capture_modes block (mode_max ONLY + force_no_raw)"
     if [[ -f "$json_dst" ]]; then
-        if grep -q '"mode_fast"' "$json_dst" 2>/dev/null; then
-            ok "P-62.1: already patched (mode_fast present in JSON)"
+        if grep -q '"active_capture_mode": "mode_max"' "$json_dst" 2>/dev/null; then
+            ok "P-62.1: already patched (mode_max default present in JSON)"
             ((++p62_count))
         else
             python3 - "$json_dst" <<'PY'
@@ -3419,9 +3419,9 @@ import json, re, sys
 path = sys.argv[1]
 text = open(path, encoding='utf-8').read()
 # Replace entire "_comment_capture_modes" + "capture_modes": { ... }, block
-new_block = '''  "_comment_capture_modes": "v6.4.0 INTELLIGENT ADAPTIVE — 2 modos de captura. mode_max = max qualidade (lento, pra cenas estaticas/tripod/low-light, 15/9/7/11 frames, super-res 2.0x, NLM radius 7). mode_fast = disparo rapido inteligente (5/3/3/5 frames, NLM radius 3, ~0.3s latency, sustain indefinido — cobre 100% dos casos de acao/burst/casual). mode_balanced REMOVIDO (v6.4.0). RAW/DNG export DESATIVADO — usuario quer JPEG one-click.",
+new_block = '''  "_comment_capture_modes": "v6.4.0-fix11 MAX-ONLY — 1 modo de captura. mode_max = max qualidade SEMPRE (15/9/7/11 frames, super-res 2.0x, NLM radius 7). mode_fast e mode_balanced REMOVIDOS. RAW/DNG export DESATIVADO — usuario quer JPEG one-click.",
   "capture_modes": {
-    "active_capture_mode": "mode_fast",
+    "active_capture_mode": "mode_max",
     "modes": {
       "mode_max": {
         "_comment": "MAX QUALITY — 15/9/7/11 frames, super res 2.0x, NLM radius 7, full pipeline. ~1.8s latency. PRA: tripod, low-light, paisagem, arquitetura, retrato posado. JPEG Q100 + HEIC Q100 + UltraHDR Q100. SEM RAW/DNG (v6.4.0 — usuario nao edita raw).",
@@ -3432,16 +3432,6 @@ new_block = '''  "_comment_capture_modes": "v6.4.0 INTELLIGENT ADAPTIVE — 2 mo
         "export_super_res_dng": false,
         "video_bitrate_mbps": 250,
         "thermal_throttle_at_c": 45
-      },
-      "mode_fast": {
-        "_comment": "FAST INTELLIGENT TRIGGER (DEFAULT v6.4.0) — 5/3/3/5 frames, sem super res, NLM radius 3, pipeline enxuto. ~0.3s latency, sustain indefinido. PRA: 100% dos casos — diario, street, acao, burst, criancas, pets, esporte. Melhor relacao qualidade/velocidade/termico. Substitui o antigo mode_balanced (removido). SEM RAW/DNG.",
-        "frame_count_multiplier": 0.4,
-        "super_resolution_scale": 1.0,
-        "nlm_search_radius": 3,
-        "force_rawmax": false,
-        "export_super_res_dng": false,
-        "video_bitrate_mbps": 100,
-        "thermal_throttle_at_c": 55
       }
     }
   },'''
@@ -3454,8 +3444,8 @@ if count == 1:
 else:
     print("P-62.1: WARN — pattern not matched; JSON unchanged")
 PY
-            if grep -q '"mode_fast"' "$json_dst" 2>/dev/null; then
-                ok "P-62.1: capture_modes block replaced (mode_fast + no RAW)"
+            if grep -q '"active_capture_mode": "mode_max"' "$json_dst" 2>/dev/null; then
+                ok "P-62.1: capture_modes block replaced (mode_max ONLY + no RAW)"
                 ((++p62_count))
             else
                 warn "P-62.1: JSON edit failed — pattern may have changed"
