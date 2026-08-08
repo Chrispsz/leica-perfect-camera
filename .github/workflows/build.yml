@@ -5,10 +5,21 @@ on:
     branches: [main, master]
   workflow_dispatch:
 
+# Cancel previous runs when pushing new commits
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.parallel=true -Dorg.gradle.caching=true"
+  CCACHE_DIR: ${{ github.workspace }}/.ccache
+  CCACHE_COMPRESS: "true"
+  CCACHE_MAXSIZE: "2G"
+
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 35
 
     steps:
       - name: Checkout
@@ -25,13 +36,30 @@ jobs:
         with:
           packages: 'platform-tools platforms;android-35 platforms;android-34 build-tools;34.0.0'
 
-      - name: Install dependencies
+      - name: Install ccache
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq sed grep git
-          echo "ANDROID_HOME=${ANDROID_HOME}"
-          echo "JAVA_HOME=${JAVA_HOME}"
-          java -version
+          sudo apt-get install -y -qq ccache sed grep git
+          ccache --version
+          mkdir -p $CCACHE_DIR
+
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: .ccache
+          key: ccache-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            ccache-${{ runner.os }}-
+
+      - name: Cache Gradle dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
 
       - name: Make build script executable
         run: chmod +x build-archlinux.sh
@@ -42,10 +70,22 @@ jobs:
       - name: Apply patches
         run: ./build-archlinux.sh patch
 
-      - name: Build APK
-        run: ./build-archlinux.sh build
-        env:
-          ANDROID_HOME: ${{ env.ANDROID_HOME }}
+      - name: Show ccache stats before build
+        run: ccache --show-stats || true
+
+      - name: Build APK (with ccache)
+        run: |
+          export ANDROID_HOME=${ANDROID_HOME}
+          export PATH="/usr/lib/ccache:$PATH"
+          export USE_CCACHE=1
+          export NDK_CCACHE=ccache
+          # Configure native build to use ccache
+          export GRADLE_USER_HOME="$HOME/.gradle"
+          ./build-archlinux.sh build
+
+      - name: Show ccache stats after build
+        if: always()
+        run: ccache --show-stats || true
 
       - name: Find APK
         run: |
